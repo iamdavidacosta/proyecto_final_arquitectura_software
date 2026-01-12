@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: spring-visualizer
+
+soap:
+  client:
+    url: http://soap-service:80/soap/files
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: 1.0
+
+logging:
+  level:
+    root: INFO
+    com.fileshare: DEBUG
+    org.springframework.ws: DEBUG
+
+otel:
+  exporter:
+    otlp:
+      endpoint: http://otel-collector:4317

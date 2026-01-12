@@ -1,0 +1,88 @@
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# .NET
+bin/
+obj/
+*.user
+*.userosscache
+*.suo
+*.ntvs*
+*.njsproj
+*.sln.docstates
+project.lock.json
+*.csproj.user
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Build outputs
+dist/
+build/
+out/
+target/
+
+# Test results
+TestResults/
+coverage/
+*.coverage
+*.coveragexml
+
+# Package files
+*.nupkg
+*.snupkg
+packages/
+
+# Docker
+docker-compose.override.yml
+
+# Secrets (NEVER commit these)
+*.pem
+*.key
+*.crt
+!infra/keys/.gitkeep
+
+# Uploaded files
+uploads/
+temp/
+
+# Java/Maven
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Spring Boot
+*.pid
+
+# Terraform (if used)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# Kubernetes secrets
+*-secret.yaml
+*-secrets.yaml

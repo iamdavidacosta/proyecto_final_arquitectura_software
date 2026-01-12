@@ -1,0 +1,157 @@
+# Simplified docker-compose for infrastructure only
+# Run with: docker compose -f docker-compose.simple.yml up -d
+
+services:
+  # ===========================================
+  # DATABASES
+  # ===========================================
+  
+  # MySQL Writer
+  mysql-writer:
+    image: mysql:8.0
+    container_name: mysql-writer
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-RootP@ssw0rd!2024}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-fileshare}
+      MYSQL_USER: ${MYSQL_USER:-fileshare_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-FileShare@123!}
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+
+  # MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-mongoAdmin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-M0ngoP@ss!2024}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+
+  # ===========================================
+  # MESSAGING
+  # ===========================================
+  
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-rabbitmq_user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-R@bbitMQ!2024}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+
+  # ===========================================
+  # OBJECT STORAGE
+  # ===========================================
+  
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-Mini0@Admin!2024}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+
+  # ===========================================
+  # SERVICE DISCOVERY & MONITORING
+  # ===========================================
+  
+  consul:
+    image: hashicorp/consul:1.17
+    container_name: consul
+    ports:
+      - "8500:8500"
+    volumes:
+      - consul-data:/consul/data
+    command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0
+    healthcheck:
+      test: ["CMD", "consul", "members"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - backend-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - backend-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - backend-net
+
+networks:
+  backend-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  mongodb-data:
+  rabbitmq-data:
+  minio-data:
+  consul-data:
+  prometheus-data:
+  grafana-data:

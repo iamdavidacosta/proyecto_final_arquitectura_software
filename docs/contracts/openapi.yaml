@@ -1,0 +1,718 @@
+openapi: 3.0.3
+info:
+  title: File Share Platform API
+  description: |
+    API REST para la plataforma de compartición de archivos.
+    Proporciona endpoints para gestión de archivos, metadata y descargas.
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@fileshare.local
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:5000/api
+    description: API Gateway (Development)
+  - url: http://localhost:5004/api
+    description: REST Service Direct (Development)
+
+tags:
+  - name: Authentication
+    description: Endpoints de autenticación
+  - name: Files
+    description: Gestión de archivos
+  - name: Health
+    description: Health checks
+
+paths:
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Registrar nuevo usuario
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: "john.doe@example.com"
+              password: "SecureP@ss123"
+              confirmPassword: "SecureP@ss123"
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Datos de entrada inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '409':
+          description: Email ya registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Iniciar sesión
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "john.doe@example.com"
+              password: "SecureP@ss123"
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Renovar token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token renovado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Refresh token inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /files:
+    get:
+      tags:
+        - Files
+      summary: Listar archivos del usuario
+      operationId: listFiles
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - Received
+              - MetadataStored
+              - Hashed
+              - Encrypted
+              - DecryptedValidated
+              - UploadedToMinIO
+              - Failed
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum:
+              - uploadedAt
+              - fileName
+              - fileSize
+            default: uploadedAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+      responses:
+        '200':
+          description: Lista de archivos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Files
+      summary: Subir archivo
+      operationId: uploadFile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Archivo a subir
+                description:
+                  type: string
+                  maxLength: 500
+                  description: Descripción opcional del archivo
+      responses:
+        '202':
+          description: Archivo recibido para procesamiento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileUploadResponse'
+        '400':
+          description: Archivo inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '413':
+          description: Archivo muy grande
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /files/{fileId}:
+    get:
+      tags:
+        - Files
+      summary: Obtener detalle de archivo
+      operationId: getFileById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalle del archivo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDetailResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Files
+      summary: Eliminar archivo
+      operationId: deleteFile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Archivo eliminado
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /files/{fileId}/download/original:
+    get:
+      tags:
+        - Files
+      summary: Descargar archivo original
+      operationId: downloadOriginalFile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Archivo original
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: 'attachment; filename="document.pdf"'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /files/{fileId}/download/encrypted:
+    get:
+      tags:
+        - Files
+      summary: Descargar archivo encriptado
+      operationId: downloadEncryptedFile
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Archivo encriptado
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+              example: 'attachment; filename="document.pdf.enc"'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /files/{fileId}/pipeline-status:
+    get:
+      tags:
+        - Files
+      summary: Obtener estado del pipeline
+      operationId: getPipelineStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Estado del pipeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineStatusResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Archivo no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Servicio saludable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Servicio no saludable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtenido del endpoint de login
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - confirmPassword
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 100
+        confirmPassword:
+          type: string
+          format: password
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    RefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token
+        refreshToken:
+          type: string
+          description: Refresh token
+        expiresIn:
+          type: integer
+          description: Segundos hasta expiración
+        tokenType:
+          type: string
+          enum:
+            - Bearer
+        user:
+          $ref: '#/components/schemas/UserInfo'
+
+    UserInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum:
+            - user
+            - admin
+
+    FileListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileSummary'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    FileSummary:
+      type: object
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+        contentType:
+          type: string
+        status:
+          $ref: '#/components/schemas/FileStatus'
+        uploadedAt:
+          type: string
+          format: date-time
+
+    FileDetailResponse:
+      type: object
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        fileSize:
+          type: integer
+          format: int64
+        contentType:
+          type: string
+        status:
+          $ref: '#/components/schemas/FileStatus'
+        uploadedAt:
+          type: string
+          format: date-time
+        sha256Hash:
+          type: string
+          pattern: '^[a-fA-F0-9]{64}$'
+        metadata:
+          $ref: '#/components/schemas/FileMetadata'
+        pipelineStatus:
+          $ref: '#/components/schemas/PipelineStatusResponse'
+        downloadUrls:
+          $ref: '#/components/schemas/DownloadUrls'
+
+    FileMetadata:
+      type: object
+      additionalProperties: true
+      description: Metadata extraída del archivo (varía según tipo)
+      example:
+        author: "John Doe"
+        createdDate: "2024-01-15T10:00:00Z"
+        pageCount: 10
+        title: "Document Title"
+
+    DownloadUrls:
+      type: object
+      properties:
+        original:
+          type: string
+          format: uri
+          description: URL para descargar archivo original
+        encrypted:
+          type: string
+          format: uri
+          description: URL para descargar archivo encriptado
+
+    FileUploadResponse:
+      type: object
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        correlationId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - Received
+        message:
+          type: string
+
+    FileStatus:
+      type: string
+      enum:
+        - Received
+        - MetadataStored
+        - Hashed
+        - Encrypted
+        - DecryptedValidated
+        - UploadedToMinIO
+        - Failed
+
+    PipelineStatusResponse:
+      type: object
+      properties:
+        fileId:
+          type: string
+          format: uuid
+        currentStatus:
+          $ref: '#/components/schemas/FileStatus'
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStage'
+
+    PipelineStage:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+          enum:
+            - Pending
+            - InProgress
+            - Completed
+            - Failed
+            - Skipped
+        startedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - Healthy
+            - Degraded
+            - Unhealthy
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+          format: uuid
+
+    ValidationError:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string

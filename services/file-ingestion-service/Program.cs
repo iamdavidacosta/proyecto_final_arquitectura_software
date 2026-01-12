@@ -1,0 +1,74 @@
+using FileIngestionService.API.Extensions;
+using FileIngestionService.API.Hubs;
+using FileIngestionService.API.Middleware;
+using FileIngestionService.Application;
+using FileIngestionService.Infrastructure;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using Serilog;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .Enrich.FromLogContext()
+    .Enrich.WithMachineName()
+    .Enrich.WithProperty("Service", "file-ingestion-service")
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .CreateLogger();
+
+builder.Host.UseSerilog();
+
+// Add OpenTelemetry
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService("file-ingestion-service"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddEntityFrameworkCoreInstrumentation()
+        .AddOtlpExporter(options =>
+        {
+            options.Endpoint = new Uri(builder.Configuration["OpenTelemetry:Endpoint"] ?? "http://otel-collector:4317");
+        }));
+
+// Add services
+builder.Services.AddApiServices(builder.Configuration);
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
+
+var app = builder.Build();
+
+// Configure middleware pipeline
+app.UseCorrelationId();
+app.UseExceptionHandling();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseCors("AllowAll");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.MapHub<FileUploadHub>("/hubs/file-upload");
+app.MapHealthChecks("/health");
+
+try
+{
+    Log.Information("Starting File Ingestion Service");
+    app.Run();
+}
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application start-up failed");
+}
+finally
+{
+    Log.CloseAndFlush();
+}
