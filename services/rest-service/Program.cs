@@ -35,8 +35,12 @@ builder.Services.AddOpenTelemetry()
 // Add Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// Add Controllers
-builder.Services.AddControllers();
+// Add Controllers with JSON options for camelCase
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 builder.Services.AddEndpointsApiExplorer();
 
 // JWT Authentication

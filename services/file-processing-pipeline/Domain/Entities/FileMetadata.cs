@@ -1,8 +1,13 @@
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
 namespace FileProcessingPipeline.Domain.Entities;
 
 public class FileMetadata
 {
-    public string Id { get; set; } = string.Empty;
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string Id { get; set; } = ObjectId.GenerateNewId().ToString();
     public Guid FileId { get; set; }
     public Guid UserId { get; set; }
     public string OriginalFileName { get; set; } = string.Empty;

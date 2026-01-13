@@ -61,7 +61,11 @@ public class FileService : IFileService
             throw new UnauthorizedAccessException("You don't have permission to download this file");
         }
 
-        var url = await _minioService.GetPresignedUrlAsync(file.MinioObjectKey, 3600, cancellationToken);
+        // Use original file for download (not encrypted)
+        var objectKey = !string.IsNullOrEmpty(file.MinioOriginalObjectKey) 
+            ? file.MinioOriginalObjectKey 
+            : file.MinioObjectKey;
+        var url = await _minioService.GetPresignedUrlAsync(objectKey, 3600, cancellationToken);
 
         return new FileDownloadResponse
         {
@@ -69,6 +73,29 @@ public class FileService : IFileService
             ExpiresAt = DateTime.UtcNow.AddHours(1),
             FileName = file.OriginalFileName
         };
+    }
+
+    public async Task<(Stream stream, string fileName, string contentType)> DownloadFileAsync(Guid fileId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var file = await _repository.GetByFileIdAsync(fileId, cancellationToken);
+        
+        if (file == null)
+            throw new FileNotFoundException("File not found");
+        
+        // Check ownership or share permission
+        if (file.UserId != userId && !file.Shares.Any(s => s.SharedWithUserId == userId && (s.ExpiresAt == null || s.ExpiresAt > DateTime.UtcNow)))
+        {
+            throw new UnauthorizedAccessException("You don't have permission to download this file");
+        }
+
+        // Use original file for download (not encrypted)
+        var objectKey = !string.IsNullOrEmpty(file.MinioOriginalObjectKey) 
+            ? file.MinioOriginalObjectKey 
+            : file.MinioObjectKey;
+        
+        var stream = await _minioService.DownloadFileAsync(objectKey, cancellationToken);
+        
+        return (stream, file.OriginalFileName, file.ContentType);
     }
 
     public async Task<IEnumerable<FileDto>> GetSharedFilesAsync(Guid userId, CancellationToken cancellationToken = default)

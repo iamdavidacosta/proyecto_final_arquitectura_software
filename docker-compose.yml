@@ -453,6 +453,8 @@ services:
       - DOTNET_ENVIRONMENT=Development
       - ConnectionStrings__MySQL=Server=proxysql;Port=6033;Database=${MYSQL_DATABASE};User=${MYSQL_USER};Password=${MYSQL_PASSWORD};
       - ConnectionStrings__MongoDB=${MONGO_CONNECTION_STRING}
+      - MongoDB__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MongoDB__DatabaseName=${MONGO_DATABASE}
       - RabbitMQ__HostName=rabbitmq
       - RabbitMQ__Port=5672
       - RabbitMQ__UserName=${RABBITMQ_DEFAULT_USER}
@@ -528,8 +530,13 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__MySQL=Server=proxysql;Port=6033;Database=${MYSQL_DATABASE};User=${MYSQL_USER};Password=${MYSQL_PASSWORD};
+      - MongoDB__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MongoDB__DatabaseName=${MONGO_DATABASE}
       - SoapService__Url=http://soap-service:8080/FileService.svc
       - MinIO__Endpoint=minio:9000
+      - MinIO__PublicEndpoint=localhost:9000
+      - MinIO__OriginalBucket=original-files
+      - MinIO__EncryptedBucket=encrypted-files
       - MinIO__AccessKey=${MINIO_ROOT_USER}
       - MinIO__SecretKey=${MINIO_ROOT_PASSWORD}
       - Jwt__Secret=${JWT_SECRET}
@@ -567,8 +574,13 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
       - ConnectionStrings__MySQL=Server=proxysql;Port=6033;Database=${MYSQL_DATABASE};User=${MYSQL_USER};Password=${MYSQL_PASSWORD};
+      - MongoDB__ConnectionString=${MONGO_CONNECTION_STRING}
+      - MongoDB__DatabaseName=${MONGO_DATABASE}
       - SoapService__Url=http://soap-service:8080/FileService.svc
       - MinIO__Endpoint=minio:9000
+      - MinIO__PublicEndpoint=localhost:9000
+      - MinIO__OriginalBucket=original-files
+      - MinIO__EncryptedBucket=encrypted-files
       - MinIO__AccessKey=${MINIO_ROOT_USER}
       - MinIO__SecretKey=${MINIO_ROOT_PASSWORD}
       - Jwt__Secret=${JWT_SECRET}

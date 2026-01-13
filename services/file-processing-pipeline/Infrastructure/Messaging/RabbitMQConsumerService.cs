@@ -136,9 +136,9 @@ public class RabbitMQConsumerService : BackgroundService
             OriginalFileName = fileEvent.FileName,
             ContentType = fileEvent.ContentType,
             OriginalFileSize = fileEvent.FileSize,
-            TempFilePath = fileEvent.TempFilePath,
+            TempFilePath = fileEvent.StoragePath,
             Description = fileEvent.Description,
-            CorrelationId = fileEvent.CorrelationId
+            CorrelationId = fileEvent.CorrelationId.ToString()
         };
 
         var result = await pipeline.ExecuteAsync(context, cancellationToken);

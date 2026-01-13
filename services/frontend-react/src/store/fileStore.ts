@@ -77,7 +77,33 @@ export const useFileStore = create<FileState>((set, get) => ({
       });
 
       get().setUploadProgress(tempFileId, 100, 'completed');
-      await get().fetchFiles();
+      
+      // Poll for file to appear in list (processing is async)
+      const currentFileCount = get().files.length;
+      let attempts = 0;
+      const maxAttempts = 15;
+      const pollInterval = 2000; // 2 seconds
+      
+      const intervalId = setInterval(async () => {
+        attempts++;
+        try {
+          const response = await axios.get(API_URL);
+          const newFiles = response.data.files || response.data;
+          set({ files: newFiles, isLoading: false });
+          
+          // Stop polling if we found a new file or max attempts reached
+          if (newFiles.length > currentFileCount || attempts >= maxAttempts) {
+            clearInterval(intervalId);
+          }
+        } catch (err) {
+          // Continue polling on error
+        }
+        
+        if (attempts >= maxAttempts) {
+          clearInterval(intervalId);
+        }
+      }, pollInterval);
+      
     } catch (error: any) {
       get().setUploadProgress(tempFileId, 0, 'error');
       set({ error: error.message });
@@ -96,8 +122,8 @@ export const useFileStore = create<FileState>((set, get) => ({
   },
 
   getDownloadUrl: async (fileId: string) => {
-    const response = await axios.get(`${API_URL}/${fileId}/download`);
-    return response.data.downloadUrl;
+    // Return direct download URL - the backend will stream the file
+    return `${API_URL}/${fileId}/download`;
   },
 
   setUploadProgress: (fileId: string, progress: number, status: 'uploading' | 'completed' | 'error') => {

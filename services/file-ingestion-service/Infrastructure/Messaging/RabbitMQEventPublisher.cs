@@ -31,10 +31,10 @@ public class RabbitMQEventPublisher : IEventPublisher, IDisposable
         _connection = factory.CreateConnection();
         _channel = _connection.CreateModel();
 
-        // Declare exchange
+        // Declare exchange - must match file-processing-pipeline (Topic type)
         _channel.ExchangeDeclare(
             exchange: _configuration["RabbitMQ:Exchange"] ?? "file-exchange",
-            type: ExchangeType.Direct,
+            type: ExchangeType.Topic,
             durable: true,
             autoDelete: false
         );

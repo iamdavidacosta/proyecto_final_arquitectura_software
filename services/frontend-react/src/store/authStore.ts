@@ -15,7 +15,7 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  register: (email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => Promise<void>;
   logout: () => void;
   refreshAccessToken: () => Promise<void>;
 }
@@ -44,10 +44,11 @@ export const useAuthStore = create<AuthState>()(
         axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
       },
 
-      register: async (email: string, password: string, firstName: string, lastName: string) => {
+      register: async (email: string, password: string, confirmPassword: string, firstName: string, lastName: string) => {
         const response = await axios.post(`${API_URL}/register`, {
           email,
           password,
+          confirmPassword,
           firstName,
           lastName,
         });

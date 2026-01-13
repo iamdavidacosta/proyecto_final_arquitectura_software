@@ -50,9 +50,9 @@ public class FilesController : ControllerBase
     }
 
     /// <summary>
-    /// Get download URL for a file
+    /// Get download URL for a file (returns presigned URL - may not work in Docker)
     /// </summary>
-    [HttpGet("{fileId:guid}/download")]
+    [HttpGet("{fileId:guid}/download-url")]
     [ProducesResponseType(typeof(FileDownloadResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetDownloadUrl(Guid fileId)
@@ -69,6 +69,31 @@ public class FilesController : ControllerBase
             return NotFound(new { error = "File not found" });
         }
         catch (UnauthorizedAccessException ex)
+        {
+            return Forbid();
+        }
+    }
+
+    /// <summary>
+    /// Download file directly (streams from MinIO through backend)
+    /// </summary>
+    [HttpGet("{fileId:guid}/download")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadFile(Guid fileId)
+    {
+        var userId = GetUserId();
+        
+        try
+        {
+            var (stream, fileName, contentType) = await _fileService.DownloadFileAsync(fileId, userId);
+            return File(stream, contentType, fileName);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound(new { error = "File not found" });
+        }
+        catch (UnauthorizedAccessException)
         {
             return Forbid();
         }

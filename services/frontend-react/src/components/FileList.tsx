@@ -1,7 +1,9 @@
 import { useFileStore } from '../store/fileStore';
+import { useAuthStore } from '../store/authStore';
 
 export default function FileList() {
   const { files, deleteFile, getDownloadUrl } = useFileStore();
+  const { token } = useAuthStore();
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -18,10 +20,26 @@ export default function FileList() {
   const handleDownload = async (fileId: string, fileName: string) => {
     try {
       const url = await getDownloadUrl(fileId);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Download failed');
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = downloadUrl;
       link.download = fileName;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error('Download failed:', error);
     }
