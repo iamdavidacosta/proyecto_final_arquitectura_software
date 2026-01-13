@@ -109,15 +109,11 @@ services:
     image: mongo:7.0
     container_name: mongodb-primary
     hostname: mongodb-primary
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     ports:
       - "27017:27017"
     volumes:
       - mongodb-primary-data:/data/db
-      - ./infra/mongodb/keyfile:/etc/mongodb/keyfile
-    command: mongod --replSet rs0 --keyFile /etc/mongodb/keyfile --bind_ip_all
+    command: mongod --replSet rs0 --bind_ip_all
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 10s
@@ -131,15 +127,11 @@ services:
     image: mongo:7.0
     container_name: mongodb-secondary1
     hostname: mongodb-secondary1
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     ports:
       - "27018:27017"
     volumes:
       - mongodb-secondary1-data:/data/db
-      - ./infra/mongodb/keyfile:/etc/mongodb/keyfile
-    command: mongod --replSet rs0 --keyFile /etc/mongodb/keyfile --bind_ip_all
+    command: mongod --replSet rs0 --bind_ip_all
     depends_on:
       - mongodb-primary
     networks:
@@ -150,15 +142,11 @@ services:
     image: mongo:7.0
     container_name: mongodb-secondary2
     hostname: mongodb-secondary2
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     ports:
       - "27019:27017"
     volumes:
       - mongodb-secondary2-data:/data/db
-      - ./infra/mongodb/keyfile:/etc/mongodb/keyfile
-    command: mongod --replSet rs0 --keyFile /etc/mongodb/keyfile --bind_ip_all
+    command: mongod --replSet rs0 --bind_ip_all
     depends_on:
       - mongodb-primary
     networks:
@@ -175,9 +163,6 @@ services:
     volumes:
       - ./infra/mongodb/init-replica.sh:/init-replica.sh
     entrypoint: ["/bin/bash", "/init-replica.sh"]
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     networks:
       - data-net
 
@@ -188,9 +173,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb-primary:27017/
+      ME_CONFIG_MONGODB_URL: mongodb://mongodb-primary:27017/
       ME_CONFIG_BASICAUTH: "false"
     depends_on:
       - mongodb-primary
@@ -470,9 +453,9 @@ services:
       - DOTNET_ENVIRONMENT=Development
       - ConnectionStrings__MySQL=Server=proxysql;Port=6033;Database=${MYSQL_DATABASE};User=${MYSQL_USER};Password=${MYSQL_PASSWORD};
       - ConnectionStrings__MongoDB=${MONGO_CONNECTION_STRING}
-      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__HostName=rabbitmq
       - RabbitMQ__Port=5672
-      - RabbitMQ__Username=${RABBITMQ_DEFAULT_USER}
+      - RabbitMQ__UserName=${RABBITMQ_DEFAULT_USER}
       - RabbitMQ__Password=${RABBITMQ_DEFAULT_PASS}
       - MinIO__Endpoint=minio:9000
       - MinIO__AccessKey=${MINIO_ROOT_USER}

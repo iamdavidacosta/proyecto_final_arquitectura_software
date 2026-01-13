@@ -14,4 +14,5 @@ import java.time.LocalDateTime;
 public class DownloadUrlDto {
     private String downloadUrl;
     private LocalDateTime expiresAt;
+    private String error;
 }

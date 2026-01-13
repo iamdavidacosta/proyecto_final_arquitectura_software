@@ -12,8 +12,11 @@ public class FileMetadata
     public string Hash { get; set; } = string.Empty;
     public string HashAlgorithm { get; set; } = "SHA256";
     public string MinioObjectKey { get; set; } = string.Empty;
+    public string MinioOriginalObjectKey { get; set; } = string.Empty;
     public string MinioBucket { get; set; } = string.Empty;
+    public string OriginalBucket { get; set; } = string.Empty;
     public bool IsEncrypted { get; set; }
+    public bool IsDecryptionValidated { get; set; }
     public string? Description { get; set; }
     public FileProcessingStatus Status { get; set; } = FileProcessingStatus.Pending;
     public string? ErrorMessage { get; set; }

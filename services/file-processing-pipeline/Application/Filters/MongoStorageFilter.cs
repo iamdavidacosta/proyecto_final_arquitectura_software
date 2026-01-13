@@ -13,7 +13,7 @@ public class MongoStorageFilter : IFilter
     private readonly ILogger<MongoStorageFilter> _logger;
 
     public string Name => "MongoStorageFilter";
-    public int Order => 5;
+    public int Order => 6; // After MinIO upload (5)
 
     public MongoStorageFilter(
         IFileMetadataRepository repository,
@@ -40,8 +40,11 @@ public class MongoStorageFilter : IFilter
             Hash = context.Hash ?? string.Empty,
             HashAlgorithm = context.HashAlgorithm,
             MinioObjectKey = context.MinioObjectKey ?? string.Empty,
-            MinioBucket = _configuration["MinIO:BucketName"] ?? "fileshare-bucket",
+            MinioOriginalObjectKey = context.MinioOriginalObjectKey ?? string.Empty,
+            MinioBucket = _configuration["MinIO:EncryptedBucket"] ?? "encrypted-files",
+            OriginalBucket = _configuration["MinIO:OriginalBucket"] ?? "original-files",
             IsEncrypted = context.IsEncrypted,
+            IsDecryptionValidated = context.IsDecryptionValidated,
             Description = context.Description,
             Status = context.HasErrors ? FileProcessingStatus.Failed : FileProcessingStatus.Completed,
             ErrorMessage = context.HasErrors ? string.Join("; ", context.Errors) : null,

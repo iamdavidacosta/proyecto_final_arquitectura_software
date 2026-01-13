@@ -2,6 +2,8 @@ package com.fileshare.visualizer.service;
 
 import com.fileshare.visualizer.dto.DownloadUrlDto;
 import com.fileshare.visualizer.dto.FileInfoDto;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -19,11 +21,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
 @Service
 public class SoapClientService {
+
+    private static final String SOAP_SERVICE = "soapService";
 
     @Value("${soap.client.url}")
     private String soapUrl;
@@ -34,6 +39,8 @@ public class SoapClientService {
         this.restTemplate = new RestTemplate();
     }
 
+    @CircuitBreaker(name = SOAP_SERVICE, fallbackMethod = "getFileFallback")
+    @Retry(name = SOAP_SERVICE)
     public FileInfoDto getFile(String fileId) {
         log.info("Getting file info via SOAP for fileId: {}", fileId);
 
@@ -43,6 +50,18 @@ public class SoapClientService {
         return parseGetFileResponse(response);
     }
 
+    public FileInfoDto getFileFallback(String fileId, Exception ex) {
+        log.error("Circuit breaker fallback for getFile. FileId: {}, Error: {}", fileId, ex.getMessage());
+        return FileInfoDto.builder()
+                .fileId(fileId)
+                .fileName("Service unavailable")
+                .status("ERROR")
+                .description("SOAP service is temporarily unavailable. Please try again later.")
+                .build();
+    }
+
+    @CircuitBreaker(name = SOAP_SERVICE, fallbackMethod = "getUserFilesFallback")
+    @Retry(name = SOAP_SERVICE)
     public List<FileInfoDto> getUserFiles(String userId) {
         log.info("Getting user files via SOAP for userId: {}", userId);
 
@@ -52,6 +71,13 @@ public class SoapClientService {
         return parseGetUserFilesResponse(response);
     }
 
+    public List<FileInfoDto> getUserFilesFallback(String userId, Exception ex) {
+        log.error("Circuit breaker fallback for getUserFiles. UserId: {}, Error: {}", userId, ex.getMessage());
+        return Collections.emptyList();
+    }
+
+    @CircuitBreaker(name = SOAP_SERVICE, fallbackMethod = "getDownloadUrlFallback")
+    @Retry(name = SOAP_SERVICE)
     public DownloadUrlDto getDownloadUrl(String fileId, int expiryInSeconds) {
         log.info("Getting download URL via SOAP for fileId: {}", fileId);
 
@@ -61,6 +87,16 @@ public class SoapClientService {
         return parseGetDownloadUrlResponse(response);
     }
 
+    public DownloadUrlDto getDownloadUrlFallback(String fileId, int expiryInSeconds, Exception ex) {
+        log.error("Circuit breaker fallback for getDownloadUrl. FileId: {}, Error: {}", fileId, ex.getMessage());
+        return DownloadUrlDto.builder()
+                .downloadUrl(null)
+                .error("Service temporarily unavailable")
+                .build();
+    }
+
+    @CircuitBreaker(name = SOAP_SERVICE, fallbackMethod = "deleteFileFallback")
+    @Retry(name = SOAP_SERVICE)
     public boolean deleteFile(String fileId, String userId) {
         log.info("Deleting file via SOAP for fileId: {}, userId: {}", fileId, userId);
 
@@ -68,6 +104,12 @@ public class SoapClientService {
         String response = sendSoapRequest(soapRequest);
         
         return parseDeleteFileResponse(response);
+    }
+
+    public boolean deleteFileFallback(String fileId, String userId, Exception ex) {
+        log.error("Circuit breaker fallback for deleteFile. FileId: {}, UserId: {}, Error: {}", 
+                fileId, userId, ex.getMessage());
+        return false;
     }
 
     private String sendSoapRequest(String soapRequest) {

@@ -5,7 +5,8 @@ sleep 30
 
 echo "Initiating MongoDB Replica Set..."
 
-mongosh --host mongodb-primary:27017 -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin <<EOF
+# Connect without authentication for replica set initialization (development mode)
+mongosh --host mongodb-primary:27017 <<EOF
 rs.initiate({
   _id: "rs0",
   members: [
@@ -17,13 +18,13 @@ rs.initiate({
 EOF
 
 echo "Waiting for replica set to initialize..."
-sleep 10
+sleep 15
 
 echo "Checking replica set status..."
-mongosh --host mongodb-primary:27017 -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin --eval "rs.status()"
+mongosh --host mongodb-primary:27017 --eval "rs.status()"
 
 echo "Creating application database and collections..."
-mongosh --host mongodb-primary:27017 -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD" --authenticationDatabase admin <<EOF
+mongosh --host mongodb-primary:27017 <<EOF
 use fileshare_metadata
 
 db.createCollection("file_metadata")

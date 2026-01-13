@@ -1,83 +1,9 @@
 {
   "rabbit_version": "3.12.0",
-  "users": [
-    {
-      "name": "rabbitmq_user",
-      "password_hash": "EzQR5k5GQ7xk3GxVxPxJZWNrZW5lZXIgaGFzaA==",
-      "hashing_algorithm": "rabbit_password_hashing_sha256",
-      "tags": "administrator"
-    }
-  ],
-  "vhosts": [
-    {
-      "name": "/"
-    }
-  ],
-  "permissions": [
-    {
-      "user": "rabbitmq_user",
-      "vhost": "/",
-      "configure": ".*",
-      "write": ".*",
-      "read": ".*"
-    }
-  ],
-  "exchanges": [
-    {
-      "name": "file-exchange",
-      "vhost": "/",
-      "type": "direct",
-      "durable": true,
-      "auto_delete": false,
-      "internal": false,
-      "arguments": {}
-    },
-    {
-      "name": "file-exchange-dlx",
-      "vhost": "/",
-      "type": "direct",
-      "durable": true,
-      "auto_delete": false,
-      "internal": false,
-      "arguments": {}
-    }
-  ],
-  "queues": [
-    {
-      "name": "documents",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {
-        "x-dead-letter-exchange": "file-exchange-dlx",
-        "x-dead-letter-routing-key": "documents.dead",
-        "x-message-ttl": 86400000
-      }
-    },
-    {
-      "name": "documents-dead",
-      "vhost": "/",
-      "durable": true,
-      "auto_delete": false,
-      "arguments": {}
-    }
-  ],
-  "bindings": [
-    {
-      "source": "file-exchange",
-      "vhost": "/",
-      "destination": "documents",
-      "destination_type": "queue",
-      "routing_key": "file.uploaded",
-      "arguments": {}
-    },
-    {
-      "source": "file-exchange-dlx",
-      "vhost": "/",
-      "destination": "documents-dead",
-      "destination_type": "queue",
-      "routing_key": "documents.dead",
-      "arguments": {}
-    }
-  ]
+  "users": [],
+  "vhosts": [{"name": "/"}],
+  "permissions": [],
+  "exchanges": [],
+  "queues": [],
+  "bindings": []
 }

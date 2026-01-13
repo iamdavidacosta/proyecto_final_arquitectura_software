@@ -17,8 +17,10 @@ public class PipelineContext
     public string? Hash { get; set; }
     public string HashAlgorithm { get; set; } = "SHA256";
     public bool IsEncrypted { get; set; }
+    public bool IsDecryptionValidated { get; set; }
     public string? EncryptedFilePath { get; set; }
     public string? MinioObjectKey { get; set; }
+    public string? MinioOriginalObjectKey { get; set; }
     
     // Metadata extracted
     public Dictionary<string, object> ExtractedMetadata { get; set; } = new();
