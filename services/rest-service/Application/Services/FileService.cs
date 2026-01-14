@@ -36,8 +36,9 @@ public class FileService : IFileService
 
     public async Task<FileListResponse> GetUserFilesAsync(Guid userId, int page, int pageSize, CancellationToken cancellationToken = default)
     {
-        var files = await _repository.GetByUserIdAsync(userId, page, pageSize, cancellationToken);
-        var totalCount = await _repository.CountByUserIdAsync(userId, cancellationToken);
+        // Platform for sharing files: all authenticated users can see all files
+        var files = await _repository.GetAllAsync(page, pageSize, cancellationToken);
+        var totalCount = await _repository.CountAllAsync(cancellationToken);
 
         return new FileListResponse
         {

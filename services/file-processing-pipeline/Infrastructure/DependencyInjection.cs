@@ -59,6 +59,9 @@ public static class DependencyInjection
         // Services
         services.AddSingleton<IMinioService, MinioService>();
         services.AddSingleton<IEncryptionService, EncryptionService>();
+        
+        // Event Publisher
+        services.AddSingleton<IEventPublisher, RabbitMQEventPublisher>();
 
         // Hosted Services
         services.AddHostedService<ConsulHostedService>();

@@ -1,29 +1,33 @@
 using System.Text;
-using FileProcessingPipeline.Application.DTOs;
-using FileProcessingPipeline.Domain.Entities;
-using FileProcessingPipeline.Domain.Interfaces;
+using FileIngestionService.API.Hubs;
+using FileIngestionService.Application.DTOs;
+using FileIngestionService.Domain.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 using Polly;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
-namespace FileProcessingPipeline.Infrastructure.Messaging;
+namespace FileIngestionService.Infrastructure.Messaging;
 
-public class RabbitMQConsumerService : BackgroundService
+public class FileProcessedConsumer : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly IConfiguration _configuration;
-    private readonly ILogger<RabbitMQConsumerService> _logger;
+    private readonly ILogger<FileProcessedConsumer> _logger;
+    private readonly IHubContext<FileUploadHub> _hubContext;
     private IConnection? _connection;
     private IModel? _channel;
 
-    public RabbitMQConsumerService(
+    public FileProcessedConsumer(
         IServiceProvider serviceProvider,
         IConfiguration configuration,
-        ILogger<RabbitMQConsumerService> logger)
+        ILogger<FileProcessedConsumer> logger,
+        IHubContext<FileUploadHub> hubContext)
     {
         _serviceProvider = serviceProvider;
         _configuration = configuration;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     public override async Task StartAsync(CancellationToken cancellationToken)
@@ -47,9 +51,9 @@ public class RabbitMQConsumerService : BackgroundService
         {
             var factory = new ConnectionFactory
             {
-                HostName = _configuration["RabbitMQ:HostName"] ?? "rabbitmq",
-                Port = int.Parse(_configuration["RabbitMQ:Port"] ?? "5672"),
-                UserName = _configuration["RabbitMQ:UserName"] ?? "admin",
+                HostName = _configuration["RabbitMQ:Host"] ?? "rabbitmq",
+                Port = _configuration.GetValue<int>("RabbitMQ:Port", 5672),
+                UserName = _configuration["RabbitMQ:Username"] ?? "admin",
                 Password = _configuration["RabbitMQ:Password"] ?? "admin123",
                 DispatchConsumersAsync = true
             };
@@ -58,17 +62,15 @@ public class RabbitMQConsumerService : BackgroundService
             _channel = _connection.CreateModel();
 
             var exchange = _configuration["RabbitMQ:Exchange"] ?? "file-exchange";
-            var queueName = _configuration["RabbitMQ:QueueName"] ?? "documents";
-            var routingKey = _configuration["RabbitMQ:RoutingKey"] ?? "file.uploaded";
+            var queueName = "file-processed-updates";
+            var routingKey = "file.processed";
 
             _channel.ExchangeDeclare(exchange, ExchangeType.Topic, durable: true);
             _channel.QueueDeclare(queueName, durable: true, exclusive: false, autoDelete: false);
             _channel.QueueBind(queueName, exchange, routingKey);
-
-            // Prefetch count for fair dispatch
             _channel.BasicQos(0, 1, false);
 
-            _logger.LogInformation("Connected to RabbitMQ. Queue: {QueueName}, Exchange: {Exchange}", queueName, exchange);
+            _logger.LogInformation("FileProcessedConsumer connected to RabbitMQ. Queue: {QueueName}", queueName);
             
             await Task.CompletedTask;
         });
@@ -82,7 +84,7 @@ public class RabbitMQConsumerService : BackgroundService
             return;
         }
 
-        var queueName = _configuration["RabbitMQ:QueueName"] ?? "documents";
+        var queueName = "file-processed-updates";
 
         var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.Received += async (model, ea) =>
@@ -90,7 +92,7 @@ public class RabbitMQConsumerService : BackgroundService
             var body = ea.Body.ToArray();
             var message = Encoding.UTF8.GetString(body);
 
-            _logger.LogInformation("Received message from queue: {QueueName}", queueName);
+            _logger.LogInformation("Received FileProcessedEvent from queue");
 
             try
             {
@@ -99,7 +101,7 @@ public class RabbitMQConsumerService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing message. Requeuing...");
+                _logger.LogError(ex, "Error processing FileProcessedEvent. Requeuing...");
                 _channel.BasicNack(ea.DeliveryTag, false, true);
             }
         };
@@ -116,57 +118,55 @@ public class RabbitMQConsumerService : BackgroundService
 
     private async Task ProcessMessageAsync(string message, CancellationToken cancellationToken)
     {
-        var fileEvent = FileUploadedEvent.FromJson(message);
-        if (fileEvent == null)
+        var processedEvent = FileProcessedEvent.FromJson(message);
+        if (processedEvent == null)
         {
-            _logger.LogError("Failed to deserialize message: {Message}", message);
+            _logger.LogError("Failed to deserialize FileProcessedEvent: {Message}", message);
             return;
         }
 
-        _logger.LogInformation("Processing file: {FileId}, FileName: {FileName}, CorrelationId: {CorrelationId}",
-            fileEvent.FileId, fileEvent.FileName, fileEvent.CorrelationId);
+        _logger.LogInformation("Processing FileProcessedEvent for FileId: {FileId}, Status: {Status}",
+            processedEvent.FileId, processedEvent.Status);
 
         using var scope = _serviceProvider.CreateScope();
-        var pipeline = scope.ServiceProvider.GetRequiredService<IPipeline>();
-        var eventPublisher = scope.ServiceProvider.GetRequiredService<IEventPublisher>();
+        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-        var context = new PipelineContext
+        // Update file status in MySQL
+        var file = await unitOfWork.Files.GetByIdAsync(processedEvent.FileId, cancellationToken);
+        if (file != null)
         {
-            FileId = fileEvent.FileId,
-            UserId = fileEvent.UserId,
-            OriginalFileName = fileEvent.FileName,
-            ContentType = fileEvent.ContentType,
-            OriginalFileSize = fileEvent.FileSize,
-            TempFilePath = fileEvent.StoragePath,
-            Description = fileEvent.Description,
-            CorrelationId = fileEvent.CorrelationId.ToString()
-        };
+            file.UpdateStatus(processedEvent.Status);
+            if (!string.IsNullOrEmpty(processedEvent.Hash))
+            {
+                file.SetHash(processedEvent.Hash);
+            }
+            if (!string.IsNullOrEmpty(processedEvent.MinioObjectKey))
+            {
+                file.SetMinioPaths(string.Empty, processedEvent.MinioObjectKey);
+            }
+            
+            await unitOfWork.Files.UpdateAsync(file, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var result = await pipeline.ExecuteAsync(context, cancellationToken);
+            _logger.LogInformation("Updated file {FileId} status to {Status} in MySQL", 
+                processedEvent.FileId, processedEvent.Status);
 
-        // Publish processed event
-        var processedEvent = new FileProcessedEvent
-        {
-            FileId = fileEvent.FileId,
-            UserId = fileEvent.UserId,
-            CorrelationId = fileEvent.CorrelationId.ToString(),
-            Status = result.HasErrors ? "Failed" : "Completed",
-            ErrorMessage = result.HasErrors ? string.Join("; ", result.Errors) : null,
-            Hash = result.Hash,
-            MinioObjectKey = result.MinioObjectKey,
-            ProcessedAt = DateTime.UtcNow
-        };
+            // Notify ALL connected clients via SignalR (so all users see the update)
+            await _hubContext.Clients.All
+                .SendAsync("FileProcessed", new
+                {
+                    fileId = processedEvent.FileId.ToString(),
+                    status = processedEvent.Status,
+                    processedAt = processedEvent.ProcessedAt,
+                    userId = processedEvent.UserId.ToString()
+                }, cancellationToken);
 
-        await eventPublisher.PublishFileProcessedAsync(processedEvent, cancellationToken);
-
-        if (result.HasErrors)
-        {
-            _logger.LogWarning("Pipeline completed with errors for FileId: {FileId}. Errors: {Errors}",
-                fileEvent.FileId, string.Join("; ", result.Errors));
+            _logger.LogInformation("Sent SignalR notification to ALL clients for file {FileId}",
+                processedEvent.FileId);
         }
         else
         {
-            _logger.LogInformation("Pipeline completed successfully for FileId: {FileId}", fileEvent.FileId);
+            _logger.LogWarning("File {FileId} not found in database", processedEvent.FileId);
         }
     }
 

@@ -34,6 +34,10 @@ export const useAuthStore = create<AuthState>()(
         const response = await axios.post(`${API_URL}/login`, { email, password });
         const { accessToken, refreshToken, userId, email: userEmail, firstName, lastName } = response.data;
         
+        // Store tokens in localStorage for api interceptor
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        
         set({
           token: accessToken,
           refreshToken,
@@ -54,6 +58,10 @@ export const useAuthStore = create<AuthState>()(
         });
         const { accessToken, refreshToken, userId, email: userEmail } = response.data;
         
+        // Store tokens in localStorage for api interceptor
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        
         set({
           token: accessToken,
           refreshToken,
@@ -65,6 +73,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        // Clear tokens from localStorage
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        
         set({
           token: null,
           refreshToken: null,

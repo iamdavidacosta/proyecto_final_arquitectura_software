@@ -12,11 +12,13 @@ export interface UploadProgress {
 
 type ProgressCallback = (progress: UploadProgress) => void;
 type ConnectionStateCallback = (state: signalR.HubConnectionState) => void;
+type FileListRefreshCallback = () => void;
 
 class SignalRService {
   private connection: signalR.HubConnection | null = null;
   private progressCallbacks: Set<ProgressCallback> = new Set();
   private connectionStateCallbacks: Set<ConnectionStateCallback> = new Set();
+  private fileListRefreshCallbacks: Set<FileListRefreshCallback> = new Set();
   private _reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
 
@@ -33,13 +35,9 @@ class SignalRService {
       return;
     }
 
-    const token = localStorage.getItem('accessToken');
-    
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(SIGNALR_URL, {
-        accessTokenFactory: () => token || '',
-        skipNegotiation: true,
-        transport: signalR.HttpTransportType.WebSockets,
+        accessTokenFactory: () => localStorage.getItem('accessToken') || '',
       })
       .withAutomaticReconnect({
         nextRetryDelayInMilliseconds: (retryContext: signalR.RetryContext) => {
@@ -68,6 +66,20 @@ class SignalRService {
 
     this.connection.on('ProcessingStarted', (progress: UploadProgress) => {
       this.notifyProgressCallbacks({ ...progress, status: 'processing' });
+    });
+
+    // Handle FileProcessed event from backend (after pipeline completion)
+    this.connection.on('FileProcessed', (data: { fileId: string; status: string; processedAt: string }) => {
+      console.log('SignalR: FileProcessed event received', data);
+      this.notifyProgressCallbacks({
+        fileId: data.fileId,
+        fileName: '',
+        progress: 100,
+        status: data.status === 'Completed' ? 'completed' : 'failed',
+        message: `Processing ${data.status.toLowerCase()}`
+      });
+      // Trigger a file list refresh
+      this.notifyFileListRefresh();
     });
 
     // Connection state change handlers
@@ -128,12 +140,21 @@ class SignalRService {
     return () => this.connectionStateCallbacks.delete(callback);
   }
 
+  onFileListRefresh(callback: FileListRefreshCallback): () => void {
+    this.fileListRefreshCallbacks.add(callback);
+    return () => this.fileListRefreshCallbacks.delete(callback);
+  }
+
   private notifyProgressCallbacks(progress: UploadProgress): void {
     this.progressCallbacks.forEach((callback) => callback(progress));
   }
 
   private notifyConnectionStateCallbacks(state: signalR.HubConnectionState): void {
     this.connectionStateCallbacks.forEach((callback) => callback(state));
+  }
+
+  private notifyFileListRefresh(): void {
+    this.fileListRefreshCallbacks.forEach((callback) => callback());
   }
 
   getConnectionState(): signalR.HubConnectionState {

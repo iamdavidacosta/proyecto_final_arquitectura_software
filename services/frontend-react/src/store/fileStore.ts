@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import api from '../services/api';
 
 interface FileInfo {
   fileId: string;
@@ -23,6 +23,7 @@ interface FileState {
   isLoading: boolean;
   error: string | null;
   fetchFiles: () => Promise<void>;
+  refreshFilesSilently: () => Promise<void>;
   uploadFile: (file: File, description?: string) => Promise<void>;
   deleteFile: (fileId: string) => Promise<void>;
   getDownloadUrl: (fileId: string) => Promise<string>;
@@ -40,10 +41,21 @@ export const useFileStore = create<FileState>((set, get) => ({
   fetchFiles: async () => {
     set({ isLoading: true, error: null });
     try {
-      const response = await axios.get(API_URL);
+      const response = await api.get(API_URL);
       set({ files: response.data.files || response.data, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
+    }
+  },
+
+  // Silent refresh - updates files without showing loading state (for real-time updates)
+  refreshFilesSilently: async () => {
+    try {
+      const response = await api.get(API_URL);
+      set({ files: response.data.files || response.data });
+    } catch (error: any) {
+      // Silently fail - don't update error state for background refreshes
+      console.error('Silent refresh failed:', error.message);
     }
   },
 
@@ -64,7 +76,7 @@ export const useFileStore = create<FileState>((set, get) => ({
         formData.append('description', description);
       }
 
-      await axios.post(`${API_URL}/upload`, formData, {
+      await api.post(`${API_URL}/upload`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -78,31 +90,13 @@ export const useFileStore = create<FileState>((set, get) => ({
 
       get().setUploadProgress(tempFileId, 100, 'completed');
       
-      // Poll for file to appear in list (processing is async)
-      const currentFileCount = get().files.length;
-      let attempts = 0;
-      const maxAttempts = 15;
-      const pollInterval = 2000; // 2 seconds
+      // Refresh file list immediately after upload
+      await get().fetchFiles();
       
-      const intervalId = setInterval(async () => {
-        attempts++;
-        try {
-          const response = await axios.get(API_URL);
-          const newFiles = response.data.files || response.data;
-          set({ files: newFiles, isLoading: false });
-          
-          // Stop polling if we found a new file or max attempts reached
-          if (newFiles.length > currentFileCount || attempts >= maxAttempts) {
-            clearInterval(intervalId);
-          }
-        } catch (err) {
-          // Continue polling on error
-        }
-        
-        if (attempts >= maxAttempts) {
-          clearInterval(intervalId);
-        }
-      }, pollInterval);
+      // Refresh again after a delay to catch status updates from processing (silent refresh)
+      setTimeout(() => {
+        get().refreshFilesSilently();
+      }, 3000);
       
     } catch (error: any) {
       get().setUploadProgress(tempFileId, 0, 'error');
@@ -112,7 +106,7 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   deleteFile: async (fileId: string) => {
     try {
-      await axios.delete(`${API_URL}/${fileId}`);
+      await api.delete(`${API_URL}/${fileId}`);
       set((state) => ({
         files: state.files.filter((f) => f.fileId !== fileId),
       }));

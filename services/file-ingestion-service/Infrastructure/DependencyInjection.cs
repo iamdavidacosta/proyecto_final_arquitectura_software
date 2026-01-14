@@ -27,6 +27,7 @@ public static class DependencyInjection
 
         // RabbitMQ
         services.AddSingleton<IEventPublisher, RabbitMQEventPublisher>();
+        services.AddHostedService<FileProcessedConsumer>();
 
         // Consul
         var consulHost = configuration["Consul:Host"] ?? "localhost";

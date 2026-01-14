@@ -35,6 +35,21 @@ public class FileRepository : IFileRepository
         return (int)await _collection.CountDocumentsAsync(x => x.UserId == userId, cancellationToken: cancellationToken);
     }
 
+    public async Task<IEnumerable<FileMetadata>> GetAllAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        return await _collection
+            .Find(_ => true)
+            .SortByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Limit(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> CountAllAsync(CancellationToken cancellationToken = default)
+    {
+        return (int)await _collection.CountDocumentsAsync(_ => true, cancellationToken: cancellationToken);
+    }
+
     public async Task<IEnumerable<FileMetadata>> GetSharedWithUserAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         var filter = Builders<FileMetadata>.Filter.ElemMatch(
