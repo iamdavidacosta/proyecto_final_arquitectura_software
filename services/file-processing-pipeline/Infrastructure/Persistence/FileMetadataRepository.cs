@@ -14,23 +14,42 @@ public class FileMetadataRepository : IFileMetadataRepository
         _collection = database.GetCollection<FileMetadata>("file_metadata");
         _logger = logger;
 
-        // Create indexes
-        CreateIndexesAsync().GetAwaiter().GetResult();
+        // Create indexes (ignore if already exist)
+        CreateIndexesSafelyAsync().GetAwaiter().GetResult();
     }
 
-    private async Task CreateIndexesAsync()
+    private async Task CreateIndexesSafelyAsync()
     {
-        var indexKeys = Builders<FileMetadata>.IndexKeys;
-        
-        var indexes = new[]
+        try
         {
-            new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.FileId)),
-            new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.UserId)),
-            new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.Hash)),
-            new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.CreatedAt))
-        };
+            var indexKeys = Builders<FileMetadata>.IndexKeys;
+            
+            // Try to create each index individually, ignoring errors for existing indexes
+            var indexModels = new[]
+            {
+                new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.FileId)),
+                new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.UserId)),
+                new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.Hash)),
+                new CreateIndexModel<FileMetadata>(indexKeys.Ascending(x => x.CreatedAt))
+            };
 
-        await _collection.Indexes.CreateManyAsync(indexes);
+            foreach (var index in indexModels)
+            {
+                try
+                {
+                    await _collection.Indexes.CreateOneAsync(index);
+                }
+                catch (MongoCommandException ex) when (ex.Message.Contains("existing index"))
+                {
+                    // Index already exists with same or different options - ignore
+                    _logger.LogDebug("Index already exists, skipping: {Message}", ex.Message);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error creating indexes, continuing anyway");
+        }
     }
 
     public async Task<FileMetadata?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
