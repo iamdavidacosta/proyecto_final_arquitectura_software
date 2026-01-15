@@ -22,6 +22,21 @@ builder.Services.AddApiServices(builder.Configuration);
 
 var app = builder.Build();
 
+// Apply migrations automatically
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AuthService.Infrastructure.Persistence.AuthDbContext>();
+    try
+    {
+        dbContext.Database.EnsureCreated();
+        Log.Information("Database schema ensured/created successfully");
+    }
+    catch (Exception ex)
+    {
+        Log.Error(ex, "Error ensuring database schema");
+    }
+}
+
 // Configure pipeline
 app.UseApiMiddleware();
 

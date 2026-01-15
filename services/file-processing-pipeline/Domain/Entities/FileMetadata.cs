@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace FileProcessingPipeline.Domain.Entities;
 
+[BsonIgnoreExtraElements]
 public class FileMetadata
 {
     [BsonId]
