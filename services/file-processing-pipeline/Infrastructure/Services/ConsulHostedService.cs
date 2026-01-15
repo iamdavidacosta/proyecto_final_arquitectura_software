@@ -8,6 +8,7 @@ public class ConsulHostedService : IHostedService
     private readonly IConfiguration _configuration;
     private readonly ILogger<ConsulHostedService> _logger;
     private string? _registrationId;
+    private Timer? _healthCheckTimer;
 
     public ConsulHostedService(IConsulClient consulClient, IConfiguration configuration, ILogger<ConsulHostedService> logger)
     {
@@ -33,9 +34,7 @@ public class ConsulHostedService : IHostedService
             Tags = new[] { "file-processing", "worker", "pipeline" },
             Check = new AgentServiceCheck
             {
-                TCP = $"{serviceHost}:{servicePort}",
-                Interval = TimeSpan.FromSeconds(10),
-                Timeout = TimeSpan.FromSeconds(5),
+                TTL = TimeSpan.FromSeconds(30),
                 DeregisterCriticalServiceAfter = TimeSpan.FromMinutes(1)
             }
         };
@@ -44,6 +43,9 @@ public class ConsulHostedService : IHostedService
         {
             await _consulClient.Agent.ServiceRegister(registration, cancellationToken);
             _logger.LogInformation("Service registered with Consul: {ServiceName} ({RegistrationId})", serviceName, _registrationId);
+            
+            // Start periodic health check update for TTL
+            _healthCheckTimer = new Timer(async _ => await UpdateHealthCheck(), null, TimeSpan.Zero, TimeSpan.FromSeconds(15));
         }
         catch (Exception ex)
         {
@@ -51,8 +53,22 @@ public class ConsulHostedService : IHostedService
         }
     }
 
+    private async Task UpdateHealthCheck()
+    {
+        try
+        {
+            await _consulClient.Agent.PassTTL($"service:{_registrationId}", "Service is running");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to update TTL check");
+        }
+    }
+
     public async Task StopAsync(CancellationToken cancellationToken)
     {
+        _healthCheckTimer?.Dispose();
+        
         if (_registrationId != null)
         {
             try
