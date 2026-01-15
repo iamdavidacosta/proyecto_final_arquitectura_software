@@ -4,10 +4,13 @@ server:
 spring:
   application:
     name: spring-visualizer
+  data:
+    mongodb:
+      uri: mongodb://mongodb-primary:27017,mongodb-secondary1:27017,mongodb-secondary2:27017/fileshare_metadata?replicaSet=rs0
 
 soap:
   client:
-    url: http://soap-service:80/soap/files
+    url: http://soap-service:8080/soap/files
 
 # Resilience4j Circuit Breaker Configuration
 resilience4j:

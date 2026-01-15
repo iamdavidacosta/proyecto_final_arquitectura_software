@@ -1,6 +1,7 @@
 package com.fileshare.visualizer.controller;
 
 import com.fileshare.visualizer.dto.FileInfoDto;
+import com.fileshare.visualizer.service.FileMetadataService;
 import com.fileshare.visualizer.service.SoapClientService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,10 +19,22 @@ import java.util.List;
 public class WebController {
 
     private final SoapClientService soapClientService;
+    private final FileMetadataService fileMetadataService;
 
     @GetMapping("/")
     public String index() {
         return "index";
+    }
+
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        log.info("Web request to show all files dashboard");
+        
+        List<FileInfoDto> files = fileMetadataService.getAllFiles();
+        model.addAttribute("files", files);
+        model.addAttribute("totalFiles", files.size());
+        
+        return "dashboard";
     }
 
     @GetMapping("/files")

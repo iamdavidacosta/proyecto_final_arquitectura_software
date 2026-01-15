@@ -17,13 +17,17 @@ public class FileMetadataRepository : IFileMetadataRepository
 
     public async Task<FileMetadata?> GetByFileIdAsync(Guid fileId, CancellationToken cancellationToken = default)
     {
-        return await _collection.Find(x => x.FileId == fileId).FirstOrDefaultAsync(cancellationToken);
+        var fileIdString = fileId.ToString();
+        return await _collection.Find(x => x.FileId.ToString() == fileIdString).FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<IEnumerable<FileMetadata>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        // Buscar por string porque MongoDB almacena userId como string
+        var userIdString = userId.ToString();
+        var filter = Builders<FileMetadata>.Filter.Eq("userId", userIdString);
         return await _collection
-            .Find(x => x.UserId == userId)
+            .Find(filter)
             .SortByDescending(x => x.CreatedAt)
             .ToListAsync(cancellationToken);
     }

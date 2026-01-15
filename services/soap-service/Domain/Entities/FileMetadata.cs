@@ -1,10 +1,20 @@
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+
 namespace SoapService.Domain.Entities;
 
 public class FileMetadata
 {
+    [BsonId]
+    [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
+    
+    [BsonRepresentation(BsonType.String)]
     public Guid FileId { get; set; }
+    
+    [BsonRepresentation(BsonType.String)]
     public Guid UserId { get; set; }
+    
     public string OriginalFileName { get; set; } = string.Empty;
     public string StoredFileName { get; set; } = string.Empty;
     public string ContentType { get; set; } = string.Empty;

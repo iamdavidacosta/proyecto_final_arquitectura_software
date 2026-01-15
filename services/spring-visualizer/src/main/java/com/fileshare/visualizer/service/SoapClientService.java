@@ -67,6 +67,7 @@ public class SoapClientService {
 
         String soapRequest = buildGetUserFilesRequest(userId);
         String response = sendSoapRequest(soapRequest);
+        log.debug("SOAP Response for getUserFiles: {}", response);
         
         return parseGetUserFilesResponse(response);
     }
@@ -136,9 +137,11 @@ public class SoapClientService {
             <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                            xmlns:files="http://fileshare.com/soap/files">
                 <soap:Body>
-                    <files:GetFileRequest>
-                        <files:FileId>%s</files:FileId>
-                    </files:GetFileRequest>
+                    <files:GetFile>
+                        <files:request>
+                            <files:FileId>%s</files:FileId>
+                        </files:request>
+                    </files:GetFile>
                 </soap:Body>
             </soap:Envelope>
             """, fileId);
@@ -150,9 +153,11 @@ public class SoapClientService {
             <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                            xmlns:files="http://fileshare.com/soap/files">
                 <soap:Body>
-                    <files:GetUserFilesRequest>
-                        <files:UserId>%s</files:UserId>
-                    </files:GetUserFilesRequest>
+                    <files:GetUserFiles>
+                        <files:request>
+                            <files:UserId>%s</files:UserId>
+                        </files:request>
+                    </files:GetUserFiles>
                 </soap:Body>
             </soap:Envelope>
             """, userId);
@@ -164,10 +169,12 @@ public class SoapClientService {
             <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                            xmlns:files="http://fileshare.com/soap/files">
                 <soap:Body>
-                    <files:GetDownloadUrlRequest>
-                        <files:FileId>%s</files:FileId>
-                        <files:ExpiryInSeconds>%d</files:ExpiryInSeconds>
-                    </files:GetDownloadUrlRequest>
+                    <files:GetDownloadUrl>
+                        <files:request>
+                            <files:FileId>%s</files:FileId>
+                            <files:ExpiryInSeconds>%d</files:ExpiryInSeconds>
+                        </files:request>
+                    </files:GetDownloadUrl>
                 </soap:Body>
             </soap:Envelope>
             """, fileId, expiryInSeconds);
@@ -179,10 +186,12 @@ public class SoapClientService {
             <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"
                            xmlns:files="http://fileshare.com/soap/files">
                 <soap:Body>
-                    <files:DeleteFileRequest>
-                        <files:FileId>%s</files:FileId>
-                        <files:UserId>%s</files:UserId>
-                    </files:DeleteFileRequest>
+                    <files:DeleteFile>
+                        <files:request>
+                            <files:FileId>%s</files:FileId>
+                            <files:UserId>%s</files:UserId>
+                        </files:request>
+                    </files:DeleteFile>
                 </soap:Body>
             </soap:Envelope>
             """, fileId, userId);
@@ -209,12 +218,27 @@ public class SoapClientService {
         
         try {
             Document doc = parseXml(xml);
-            NodeList fileNodes = doc.getElementsByTagName("Files");
+            
+            // Intentar diferentes nombres de elementos
+            NodeList fileNodes = doc.getElementsByTagNameNS("http://fileshare.com/soap/files", "FileInfo");
+            log.debug("Found {} FileInfo nodes with namespace", fileNodes.getLength());
+            
+            if (fileNodes.getLength() == 0) {
+                fileNodes = doc.getElementsByTagName("FileInfo");
+                log.debug("Found {} FileInfo nodes without namespace", fileNodes.getLength());
+            }
+            
+            if (fileNodes.getLength() == 0) {
+                fileNodes = doc.getElementsByTagName("a:FileInfo");
+                log.debug("Found {} a:FileInfo nodes", fileNodes.getLength());
+            }
             
             for (int i = 0; i < fileNodes.getLength(); i++) {
                 Element fileElement = (Element) fileNodes.item(i);
                 files.add(mapToFileInfoDto(fileElement));
             }
+            
+            log.debug("Parsed {} files from SOAP response", files.size());
         } catch (Exception e) {
             log.error("Error parsing GetUserFiles response", e);
         }

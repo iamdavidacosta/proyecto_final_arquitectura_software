@@ -2,7 +2,7 @@ services:
   # ===========================================
   # INFRASTRUCTURE - DATABASES
   # ===========================================
-  
+
   # MySQL Writer (Primary)
   mysql-writer:
     image: mysql:8.0
@@ -21,7 +21,7 @@ services:
       - ./infra/mysql/init:/docker-entrypoint-initdb.d
     command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,7 +48,7 @@ services:
       mysql-writer:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -75,7 +75,7 @@ services:
       mysql-writer:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -162,7 +162,7 @@ services:
       - mongodb-secondary2
     volumes:
       - ./infra/mongodb/init-replica.sh:/init-replica.sh
-    entrypoint: ["/bin/bash", "/init-replica.sh"]
+    entrypoint: [ "/bin/bash", "/init-replica.sh" ]
     networks:
       - data-net
 
@@ -183,7 +183,7 @@ services:
   # ===========================================
   # INFRASTRUCTURE - MESSAGING
   # ===========================================
-  
+
   # RabbitMQ
   rabbitmq:
     image: rabbitmq:3.12-management
@@ -200,7 +200,7 @@ services:
       - ./infra/rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
       - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -210,7 +210,7 @@ services:
   # ===========================================
   # INFRASTRUCTURE - OBJECT STORAGE
   # ===========================================
-  
+
   # MinIO
   minio:
     image: minio/minio:latest
@@ -226,7 +226,7 @@ services:
       - minio-data:/data
     command: server /data --console-address ":9001"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -241,20 +241,14 @@ services:
       minio:
         condition: service_healthy
     entrypoint: >
-      /bin/sh -c "
-      mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
-      mc mb myminio/original-files --ignore-existing;
-      mc mb myminio/encrypted-files --ignore-existing;
-      mc anonymous set download myminio/original-files;
-      exit 0;
-      "
+      /bin/sh -c " mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; mc mb myminio/original-files --ignore-existing; mc mb myminio/encrypted-files --ignore-existing; mc anonymous set download myminio/original-files; exit 0; "
     networks:
       - backend-net
 
   # ===========================================
   # INFRASTRUCTURE - SERVICE DISCOVERY
   # ===========================================
-  
+
   # Consul
   consul:
     image: hashicorp/consul:1.17
@@ -268,7 +262,7 @@ services:
       - ./infra/consul/config.json:/consul/config/config.json
     command: agent -server -bootstrap-expect=1 -ui -client=0.0.0.0 -config-dir=/consul/config
     healthcheck:
-      test: ["CMD", "consul", "members"]
+      test: [ "CMD", "consul", "members" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -278,18 +272,18 @@ services:
   # ===========================================
   # INFRASTRUCTURE - OBSERVABILITY
   # ===========================================
-  
+
   # OpenTelemetry Collector
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.91.0
     container_name: otel-collector
-    command: ["--config=/etc/otel/config.yaml"]
+    command: [ "--config=/etc/otel/config.yaml" ]
     volumes:
       - ./infra/otel/otel-collector-config.yaml:/etc/otel/config.yaml
     ports:
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "8888:8888"   # Prometheus metrics
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
+      - "8888:8888" # Prometheus metrics
     networks:
       - monitoring-net
       - backend-net
@@ -308,7 +302,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.enable-lifecycle'
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy"]
+      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -338,7 +332,7 @@ services:
   # ===========================================
   # INFRASTRUCTURE - LOAD BALANCER
   # ===========================================
-  
+
   # Nginx Load Balancer for REST Service
   nginx-lb:
     image: nginx:1.25-alpine
@@ -352,7 +346,7 @@ services:
       - rest-service-1
       - rest-service-2
     healthcheck:
-      test: ["CMD", "nginx", "-t"]
+      test: [ "CMD", "nginx", "-t" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -362,7 +356,7 @@ services:
   # ===========================================
   # MICROSERVICES
   # ===========================================
-  
+
   # Auth Service
   auth-service:
     build:
@@ -391,7 +385,7 @@ services:
       rabbitmq:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -433,7 +427,7 @@ services:
       consul:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -510,7 +504,7 @@ services:
       consul:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -554,7 +548,7 @@ services:
       consul:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -598,7 +592,7 @@ services:
       consul:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -637,7 +631,7 @@ services:
       consul:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -649,7 +643,7 @@ services:
   # ===========================================
   # APPLICATIONS
   # ===========================================
-  
+
   # Spring Visualizer
   spring-visualizer:
     build:
@@ -667,12 +661,13 @@ services:
       soap-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
     networks:
       - backend-net
+      - data-net
 
   # Frontend React
   frontend-react:
