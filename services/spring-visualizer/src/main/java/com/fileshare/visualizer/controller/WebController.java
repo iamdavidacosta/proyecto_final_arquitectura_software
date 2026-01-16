@@ -22,7 +22,13 @@ public class WebController {
     private final FileMetadataService fileMetadataService;
 
     @GetMapping("/")
-    public String index() {
+    public String index(Model model) {
+        log.info("Web request to show unified dashboard");
+        
+        List<FileInfoDto> files = fileMetadataService.getAllFiles();
+        model.addAttribute("files", files);
+        model.addAttribute("totalFiles", files.size());
+        
         return "index";
     }
 
