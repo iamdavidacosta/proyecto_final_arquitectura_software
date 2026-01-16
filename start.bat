@@ -57,9 +57,7 @@ echo    - Auth Service:    http://localhost:5001
 echo    - File Ingestion:  http://localhost:5002
 echo    - SOAP Service:    http://localhost:5003/FileService.svc?wsdl
 echo.
-echo 📊 Monitoring:
-echo    - Grafana:         http://localhost:3001 (admin/Grafana@Admin!2024)
-echo    - Prometheus:      http://localhost:9090
+echo 📊 Infrastructure:
 echo    - Consul:          http://localhost:8500
 echo    - RabbitMQ:        http://localhost:15672 (rabbitmq_user/R@bbitMQ!2024)
 echo    - MinIO:           http://localhost:9001 (minioadmin/Mini0@Admin!2024)

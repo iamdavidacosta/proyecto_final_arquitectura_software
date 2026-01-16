@@ -270,66 +270,6 @@ services:
       - backend-net
 
   # ===========================================
-  # INFRASTRUCTURE - OBSERVABILITY
-  # ===========================================
-
-  # OpenTelemetry Collector
-  otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.91.0
-    container_name: otel-collector
-    command: [ "--config=/etc/otel/config.yaml" ]
-    volumes:
-      - ./infra/otel/otel-collector-config.yaml:/etc/otel/config.yaml
-    ports:
-      - "4317:4317" # OTLP gRPC
-      - "4318:4318" # OTLP HTTP
-      - "8888:8888" # Prometheus metrics
-    networks:
-      - monitoring-net
-      - backend-net
-
-  # Prometheus
-  prometheus:
-    image: prom/prometheus:v2.48.0
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.enable-lifecycle'
-    healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://localhost:9090/-/healthy" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - monitoring-net
-      - backend-net
-
-  # Grafana
-  grafana:
-    image: grafana/grafana:10.2.3
-    container_name: grafana
-    ports:
-      - "3001:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_USERS_ALLOW_SIGN_UP: "false"
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./infra/grafana/provisioning:/etc/grafana/provisioning
-      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards
-    depends_on:
-      - prometheus
-    networks:
-      - monitoring-net
-
-  # ===========================================
   # INFRASTRUCTURE - LOAD BALANCER
   # ===========================================
 
@@ -376,7 +316,6 @@ services:
       - Jwt__ExpirationMinutes=${JWT_EXPIRATION_MINUTES}
       - Consul__Host=consul
       - Consul__Port=8500
-      - OpenTelemetry__Endpoint=http://otel-collector:4317
     depends_on:
       proxysql:
         condition: service_started
@@ -392,7 +331,6 @@ services:
     networks:
       - backend-net
       - data-net
-      - monitoring-net
 
   # File Ingestion Service
   file-ingestion-service:
@@ -416,7 +354,6 @@ services:
       - Jwt__Audience=${JWT_AUDIENCE}
       - Consul__Host=consul
       - Consul__Port=8500
-      - OpenTelemetry__Endpoint=http://otel-collector:4317
     volumes:
       - file-uploads:/app/uploads
     depends_on:
@@ -434,7 +371,6 @@ services:
     networks:
       - backend-net
       - data-net
-      - monitoring-net
 
   # File Processing Pipeline
   file-processing-pipeline:
@@ -458,7 +394,6 @@ services:
       - MinIO__SecretKey=${MINIO_ROOT_PASSWORD}
       - MinIO__OriginalBucket=original-files
       - MinIO__EncryptedBucket=encrypted-files
-      - OpenTelemetry__Endpoint=http://otel-collector:4317
     volumes:
       - file-uploads:/app/uploads
       - ./infra/keys:/app/keys
@@ -474,7 +409,6 @@ services:
     networks:
       - backend-net
       - data-net
-      - monitoring-net
 
   # SOAP Service
   soap-service:
@@ -495,7 +429,6 @@ services:
       - Jwt__Audience=${JWT_AUDIENCE}
       - Consul__Host=consul
       - Consul__Port=8500
-      - OpenTelemetry__Endpoint=http://otel-collector:4317
     depends_on:
       proxysql:
         condition: service_started
@@ -511,7 +444,6 @@ services:
     networks:
       - backend-net
       - data-net
-      - monitoring-net
 
   # REST Service Instance 1
   rest-service-1:
@@ -538,7 +470,6 @@ services:
       - Jwt__Audience=${JWT_AUDIENCE}
       - Consul__Host=consul
       - Consul__Port=8500
-      - OpenTelemetry__Endpoint=http://otel-collector:4317
       - INSTANCE_ID=rest-service-1
     depends_on:
       soap-service:
@@ -555,7 +486,6 @@ services:
     networks:
       - backend-net
       - data-net
-      - monitoring-net
 
   # REST Service Instance 2
   rest-service-2:
@@ -582,7 +512,6 @@ services:
       - Jwt__Audience=${JWT_AUDIENCE}
       - Consul__Host=consul
       - Consul__Port=8500
-      - OpenTelemetry__Endpoint=http://otel-collector:4317
       - INSTANCE_ID=rest-service-2
     depends_on:
       soap-service:
@@ -599,7 +528,6 @@ services:
     networks:
       - backend-net
       - data-net
-      - monitoring-net
 
   # API Gateway
   api-gateway:
@@ -618,7 +546,6 @@ services:
       - Jwt__Audience=${JWT_AUDIENCE}
       - Consul__Host=consul
       - Consul__Port=8500
-      - OpenTelemetry__Endpoint=http://otel-collector:4317
       - Services__Auth=http://auth-service:8080
       - Services__FileIngestion=http://file-ingestion-service:8080
       - Services__Soap=http://soap-service:8080
@@ -638,7 +565,6 @@ services:
     networks:
       - frontend-net
       - backend-net
-      - monitoring-net
 
   # ===========================================
   # APPLICATIONS
@@ -697,8 +623,6 @@ networks:
     driver: bridge
   data-net:
     driver: bridge
-  monitoring-net:
-    driver: bridge
 
 # ===========================================
 # VOLUMES
@@ -713,7 +637,5 @@ volumes:
   rabbitmq-data:
   minio-data:
   consul-data:
-  prometheus-data:
-  grafana-data:
   proxysql-data:
   file-uploads:
