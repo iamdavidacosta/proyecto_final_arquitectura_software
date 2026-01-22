@@ -12,7 +12,7 @@ public class HashFilter : IFilter
     private readonly ILogger<HashFilter> _logger;
 
     public string Name => "HashFilter";
-    public int Order => 1;
+    public int Order => 2;
 
     public HashFilter(ILogger<HashFilter> logger)
     {

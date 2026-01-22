@@ -11,7 +11,7 @@ public class MetadataFilter : IFilter
     private readonly ILogger<MetadataFilter> _logger;
 
     public string Name => "MetadataFilter";
-    public int Order => 2;
+    public int Order => 1;
 
     public MetadataFilter(ILogger<MetadataFilter> logger)
     {
