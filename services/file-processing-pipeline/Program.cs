@@ -1,7 +1,5 @@
 using FileProcessingPipeline.Application;
 using FileProcessingPipeline.Infrastructure;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using Serilog;
 
 var builder = Host.CreateApplicationBuilder(args);
@@ -16,17 +14,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Services.AddSerilog();
-
-// Add OpenTelemetry
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource
-        .AddService("file-processing-pipeline"))
-    .WithTracing(tracing => tracing
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter(options =>
-        {
-            options.Endpoint = new Uri(builder.Configuration["OpenTelemetry:Endpoint"] ?? "http://otel-collector:4317");
-        }));
 
 // Add Application and Infrastructure services
 builder.Services.AddApplication();

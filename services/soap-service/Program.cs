@@ -1,5 +1,3 @@
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using Serilog;
 using SoapCore;
 using SoapService.Contracts;
@@ -18,18 +16,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
-
-// Add OpenTelemetry
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource
-        .AddService("soap-service"))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddOtlpExporter(options =>
-        {
-            options.Endpoint = new Uri(builder.Configuration["OpenTelemetry:Endpoint"] ?? "http://otel-collector:4317");
-        }));
 
 // Add Infrastructure
 builder.Services.AddInfrastructure(builder.Configuration);

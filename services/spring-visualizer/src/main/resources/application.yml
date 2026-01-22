@@ -61,8 +61,3 @@ logging:
     com.fileshare: DEBUG
     org.springframework.ws: DEBUG
     io.github.resilience4j: DEBUG
-
-otel:
-  exporter:
-    otlp:
-      endpoint: http://otel-collector:4317

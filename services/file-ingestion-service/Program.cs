@@ -3,8 +3,6 @@ using FileIngestionService.API.Hubs;
 using FileIngestionService.API.Middleware;
 using FileIngestionService.Application;
 using FileIngestionService.Infrastructure;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,19 +17,6 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
-
-// Add OpenTelemetry
-builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource
-        .AddService("file-ingestion-service"))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation()
-        .AddEntityFrameworkCoreInstrumentation()
-        .AddOtlpExporter(options =>
-        {
-            options.Endpoint = new Uri(builder.Configuration["OpenTelemetry:Endpoint"] ?? "http://otel-collector:4317");
-        }));
 
 // Add services
 builder.Services.AddApiServices(builder.Configuration);

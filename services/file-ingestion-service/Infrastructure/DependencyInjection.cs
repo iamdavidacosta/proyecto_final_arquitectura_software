@@ -7,9 +7,6 @@ using FileIngestionService.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 
 namespace FileIngestionService.Infrastructure;
 
@@ -39,22 +36,6 @@ public static class DependencyInjection
         }));
 
         services.AddHostedService<ConsulHostedService>();
-
-        // OpenTelemetry
-        var otelEndpoint = configuration["OpenTelemetry:Endpoint"];
-        if (!string.IsNullOrEmpty(otelEndpoint))
-        {
-            services.AddOpenTelemetry()
-                .ConfigureResource(resource => resource.AddService("file-ingestion-service"))
-                .WithTracing(tracing => tracing
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)))
-                .WithMetrics(metrics => metrics
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .AddOtlpExporter(options => options.Endpoint = new Uri(otelEndpoint)));
-        }
 
         return services;
     }
