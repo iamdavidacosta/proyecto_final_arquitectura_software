@@ -104,6 +104,26 @@ services:
       - data-net
       - backend-net
 
+  # MySQL Replication Init
+  mysql-replication-init:
+    image: mysql:8.0
+    container_name: mysql-replication-init
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - ./infra/mysql/setup-replication.sh:/setup-replication.sh
+    entrypoint: ["/bin/bash", "/setup-replication.sh"]
+    depends_on:
+      mysql-writer:
+        condition: service_healthy
+      mysql-replica1:
+        condition: service_healthy
+      mysql-replica2:
+        condition: service_healthy
+    networks:
+      - data-net
+    restart: "no"
+
   # MongoDB Primary
   mongodb-primary:
     image: mongo:7.0

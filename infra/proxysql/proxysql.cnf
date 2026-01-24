@@ -31,6 +31,8 @@ mysql_variables=
     commands_stats=true
     sessions_sort=true
     connect_retries_on_failure=10
+    # Force mysql_native_password for MySQL 8.0 compatibility
+    mysql_default_authentication_plugin="mysql_native_password"
 }
 
 mysql_servers =

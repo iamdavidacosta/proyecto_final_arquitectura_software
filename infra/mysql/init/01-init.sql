@@ -1,6 +1,11 @@
--- Create replication user
-CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED BY 'repl_pass123';
+-- Create replication user with mysql_native_password for compatibility
+CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED WITH mysql_native_password BY 'repl_pass123';
 GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
+
+-- Create monitor user for ProxySQL health checks
+CREATE USER IF NOT EXISTS 'monitor'@'%' IDENTIFIED WITH mysql_native_password BY 'monitor123';
+GRANT REPLICATION CLIENT ON *.* TO 'monitor'@'%';
+GRANT SELECT ON performance_schema.* TO 'monitor'@'%';
 
 -- Create application database and tables
 CREATE DATABASE IF NOT EXISTS fileshare_db;
@@ -70,6 +75,9 @@ CREATE TABLE IF NOT EXISTS pipeline_stages (
     UNIQUE KEY uk_file_stage (file_id, stage_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Grant privileges
+-- Grant privileges and ensure mysql_native_password for ProxySQL compatibility
+-- Note: fileshare_user is created by Docker MySQL image, we just need to change auth plugin
+CREATE USER IF NOT EXISTS 'fileshare_user'@'%' IDENTIFIED WITH mysql_native_password BY 'FileShare@123!';
+ALTER USER 'fileshare_user'@'%' IDENTIFIED WITH mysql_native_password BY 'FileShare@123!';
 GRANT ALL PRIVILEGES ON fileshare_db.* TO 'fileshare_user'@'%';
 FLUSH PRIVILEGES;
